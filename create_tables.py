@@ -1,6 +1,9 @@
 # create_tables.py
-from app import app, db
+from app import app
+from extensions import db 
+import models
 
-with app.app_context():
-    db.create_all()
-    print("Tables created/updated.")
+if __name__="__main__":
+    with app.app_context():
+        db.create_all()
+        print("All tables created successfully.")
