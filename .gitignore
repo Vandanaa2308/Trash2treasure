@@ -1,0 +1,58 @@
+# Python
+_pycache_/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+env/
+venv/
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Installer logs
+pip-log.txt
+
+# Pyenv
+.python-version
+
+# Unit test / coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+pytest_cache/
+
+# Virtual envs
+venv/
+ENV/
+.env/
+.envrc
+.env.local
+
+# Flask
+instance/
+*.db
+*.sqlite
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db

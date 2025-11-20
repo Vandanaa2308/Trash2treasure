@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Chat{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="icon-listing">Chat with {{ owner.name }}</h1>
+    <p class="quote">“Good communication builds great connections.”</p>
+</div>
+
+<div class="chat-wrap">
+
+    <div class="chat-left">
+        <div class="chat-window" id="messages">
+
+            {% for m in messages %}
+                {% if m.sender_id == current_user.id %}
+                    <div class="msg me">
+                        <div class="bubble">{{ m.content }}</div>
+                    </div>
+                {% else %}
+                    <div class="msg you">
+                        <div class="bubble">{{ m.content }}</div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+        </div>
+
+        <form method="POST" class="chat-compose">
+            <input name="message" placeholder="Write a message...">
+            <button class="btn btn-primary icon-listing">Send</button>
+        </form>
+    </div>
+
+    <div class="item-right">
+        <h3 class="icon-listing">Item Info</h3>
+        <img src="{{ url_for('static', filename='uploads/' ~ item.image) }}"
+             style="width:100%;border-radius:8px;">
+        <p>{{ item.title }}</p>
+    </div>
+
+</div>
+
+<script>
+    messages.scrollTop = messages.scrollHeight;
+</script>
+
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card p-4 mx-auto" style="max-width:720px;">
+  <h3 class="mb-3">Upload item</h3>
+  <form method="post" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="mb-2">{{ form.title(class="form-control", placeholder="Title") }}</div>
+    <div class="mb-2">{{ form.description(class="form-control", placeholder="Description") }}</div>
+    <div class="mb-2">{{ form.category(class="form-control", placeholder="Category") }}</div>
+    <div class="mb-2">{{ form.price(class="form-control", placeholder="Price (if any)") }}</div>
+    <div class="mb-2">{{ form.quantity(class="form-control", placeholder="Quantity") }}</div>
+    <div class="mb-2">{{ form.location(class="form-control", placeholder="Location") }}</div>
+    <div class="mb-2">
+      <label class="form-label">Image</label>
+      <input class="form-control" type="file" name="image">
+    </div>
+    <div>{{ form.submit(class="btn btn-primary") }}</div>
+  </form>
+</div>
+{% endblock %}

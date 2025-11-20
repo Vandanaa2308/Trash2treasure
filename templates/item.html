@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-md-7">
+    <div class="card">
+      {% if item.image_filename %}
+        <img src="{{ url_for('uploaded_file', filename=item.image_filename) }}" class="card-img-top" style="max-height:420px; object-fit:cover;">
+      {% endif %}
+      <div class="card-body">
+        <h3>{{ item.title }}</h3>
+        <p class="text-muted">{{ item.category }} • {{ item.location or 'No location' }} • {{ item.quantity or 'N/A' }}</p>
+        <p>{{ item.description }}</p>
+        <p><strong>{{ 'Free' if item.is_free else ('Price: ₹' ~ (item.price | round(2))) }}</strong></p>
+        <p class="small text-muted">Uploaded: {{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p class="small">Owner: {{ item.user.name if item.user else 'Unknown' }}</p>
+
+        <a href="{{ url_for('chat_with_owner', item_id=item.id) }}" class="btn btn-primary mt-2">💬 Chat with Owner</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="card p-3">
+      <h5>Contact owner</h5>
+      <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="mb-2">{{ form.name(class="form-control", placeholder="Your name") }}</div>
+        <div class="mb-2">{{ form.email(class="form-control", placeholder="Your email") }}</div>
+        <div class="mb-2">{{ form.message(class="form-control", rows=4, placeholder="Message and pickup details") }}</div>
+        <div>{{ form.submit(class="btn btn-primary") }}</div>
+      </form>
+    </div>
+    <div class="mt-3">
+      <a href="{{ url_for('listings') }}" class="btn btn-outline-secondary">Back to listings</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Latest items</h2>
+<div class="row">
+  {% for item in items %}
+    <div class="col-md-4 mb-3">
+      <div class="card h-100">
+        {% if item.image_filename %}
+          <img src="{{ url_for('uploaded_file', filename=item.image_filename) }}" class="card-img-top" style="height:180px;object-fit:cover;">
+        {% endif %}
+        <div class="card-body">
+          <h5 class="card-title">{{ item.title }}</h5>
+          <p class="card-text">{{ item.description|truncate(120) }}</p>
+          <a class="btn btn-sm btn-primary" href="{{ url_for('item_detail', item_id=item.id) }}">View</a>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <p>No items yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

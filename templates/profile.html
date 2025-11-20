@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Your Profile</h3>
+<p>Name: {{ current_user.name }}</p>
+<p>Email: {{ current_user.email }}</p>
+<p>Phone: {{ current_user.phone }}</p>
+<a class="btn btn-outline-primary" href="{{ url_for('upload') }}">Upload new item</a>
+{% endblock %}
