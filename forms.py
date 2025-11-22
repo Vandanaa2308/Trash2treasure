@@ -1,7 +1,7 @@
 # forms.py
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TextAreaField, SubmitField, BooleanField, FloatField
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms import StringField, PasswordField, TextAreaField, SubmitField, BooleanField, FloatField, IntegerField
+from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange
 
 class RegisterForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=120)])
@@ -34,3 +34,8 @@ class UploadForm(FlaskForm):
 class ChatForm(FlaskForm):
     message = StringField('Message', validators=[DataRequired(), Length(max=1000)])
     submit = SubmitField('Send')
+
+class RatingForm(FlaskForm):
+    stars = IntegerField('Stars', validators=[DataRequired(), NumberRange(min=1, max=5)])
+    review = TextAreaField('Review', validators=[Optional(), Length(max=1000)])
+    submit = SubmitField('Rate')
