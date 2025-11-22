@@ -20,8 +20,8 @@ db.init_app(app)
 login_manager.init_app(app)
 
 # now import local modules
-from models import User, Item, Message, Rating
-from forms import RegisterForm, LoginForm, ContactForm, UploadForm, ChatForm, RatingForm
+from models import User, Item, Message
+from forms import RegisterForm, LoginForm, ContactForm, UploadForm, ChatForm
 
 # user loader
 @login_manager.user_loader
@@ -31,7 +31,7 @@ def load_user(user_id):
 # index: show some items
 @app.route('/')
 def index():
-    items = Item.query.filter_by(visible=True, is_sold=False).order_by(Item.created_at.desc()).limit(6).all()
+    items = Item.query.order_by(Item.created_at.desc()).limit(6).all()
     return render_template('index.html', items=items)
 
 # listings
@@ -40,7 +40,7 @@ def listings():
     q = request.args.get('q', '')
     cat = request.args.get('category', '')
     free = request.args.get('free', '')
-    query = Item.query.filter_by(visible=True, is_sold=False)
+    query = Item.query.filter_by(visible=True)
     if q:
         query = query.filter(Item.title.ilike(f'%{q}%'))
     if cat:
@@ -50,49 +50,31 @@ def listings():
     items = query.order_by(Item.created_at.desc()).all()
     return render_template('listings.html', items=items, q=q, cat=cat, free=free)
 
-# item detail + rating handling
+# item detail (show + contact owner)
 @app.route('/item/<int:item_id>', methods=['GET', 'POST'])
 def item_detail(item_id):
     item = Item.query.get_or_404(item_id)
-    # contact form
-    contact_form = ContactForm()
-    rating_form = RatingForm()
-    # handle contact
-    if contact_form.validate_on_submit() and 'send_contact' in request.form:
-        flash('Message sent to owner (demo)', 'success')
-        return redirect(url_for('item_detail', item_id=item_id))
-
-    # handle rating submission
-    if rating_form.validate_on_submit() and 'submit_rating' in request.form:
+    form = ContactForm()
+    if form.validate_on_submit():
+        # require login to send a message
         if not current_user.is_authenticated:
-            flash('Please login to submit rating', 'warning')
+            flash('Please log in to contact the owner.', 'warning')
             return redirect(url_for('login'))
-        # owner cannot rate own item
-        if current_user.id == item.user_id:
-            flash('You cannot rate your own item', 'warning')
-            return redirect(url_for('item_detail', item_id=item_id))
 
-        stars = rating_form.stars.data
-        review = rating_form.review.data or ''
-        existing = Rating.query.filter_by(item_id=item.id, user_id=current_user.id).first()
-        if existing:
-            existing.stars = stars
-            existing.review = review
-            existing.created_at = Rating.utcnow()
-            flash('Your rating was updated', 'success')
-        else:
-            r = Rating(item_id=item.id, user_id=current_user.id, stars=stars, review=review)
-            db.session.add(r)
-            flash('Thank you for your rating', 'success')
+        # create a message record (owner will see it in inbox)
+        content = f"Contact form message from {form.name.data} ({form.email.data}):\n\n{form.message.data}"
+        msg = Message(
+            item_id=item.id,
+            sender_id=current_user.id,
+            recipient_id=item.user_id,
+            content=content
+        )
+        db.session.add(msg)
         db.session.commit()
+        flash('Message sent to owner', 'success')
         return redirect(url_for('item_detail', item_id=item_id))
 
-    # show average rating
-    avg = db.session.query(db.func.avg(Rating.stars)).filter(Rating.item_id == item.id).scalar()
-    count = Rating.query.filter_by(item_id=item.id).count()
-    avg = float(avg) if avg else None
-
-    return render_template('item.html', item=item, form=contact_form, rating_form=rating_form, avg_rating=avg, rating_count=count)
+    return render_template('item.html', item=item, form=form)
 
 # upload (must login)
 @app.route('/upload', methods=['GET', 'POST'])
@@ -105,15 +87,24 @@ def upload():
         if file and file.filename:
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        # determine price/free flag
+        price_value = form.price.data
+        if price_value is None:
+            price_value = 0.0
+
+        is_free_flag = (float(price_value) == 0.0)
+
         item = Item(
             title=form.title.data,
             description=form.description.data,
             category=form.category.data,
-            price=form.price.data or 0.0,
+            price=price_value,
             quantity=form.quantity.data,
             location=form.location.data,
             image_filename=filename,
-            user_id=current_user.id
+            user_id=current_user.id,
+            is_free=is_free_flag
         )
         db.session.add(item)
         db.session.commit()
@@ -176,11 +167,9 @@ def logout():
 @app.route('/profile')
 @login_required
 def profile():
-    # show user's items and ratings
-    items = Item.query.filter_by(user_id=current_user.id).order_by(Item.created_at.desc()).all()
-    return render_template('profile.html', items=items)
+    return render_template('profile.html')
 
-# chat route (send + display messages about a specific item)
+# chat route (send + display messages about a specific item) - kept for compatibility
 @app.route('/chat/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def chat_with_owner(item_id):
@@ -214,116 +203,70 @@ def chat_with_owner(item_id):
 
     return render_template('chat.html', item=item, owner=owner, messages=conv, form=form)
 
-# DELETE item (owner only)
-@app.route('/delete_item/<int:item_id>', methods=['POST'])
-@login_required
-def delete_item(item_id):
-    item = Item.query.get_or_404(item_id)
-    if item.user_id != current_user.id:
-        flash("You are not allowed to delete this item.", "danger")
-        return redirect(url_for('item_detail', item_id=item_id))
+# inbox & conversation features
+from sqlalchemy import or_
 
-    # delete image file if exists
-    if item.image_filename:
-        image_path = os.path.join(app.config['UPLOAD_FOLDER'], item.image_filename)
-        if os.path.exists(image_path):
-            try:
-                os.remove(image_path)
-            except Exception:
-                pass
-
-    db.session.delete(item)
-    db.session.commit()
-    flash("Item deleted successfully!", "success")
-    return redirect(url_for('listings'))
-
-# Mark as sold / unmark
-@app.route('/mark_sold/<int:item_id>', methods=['POST'])
-@login_required
-def mark_sold(item_id):
-    item = Item.query.get_or_404(item_id)
-    if item.user_id != current_user.id:
-        flash("You cannot change this item.", "danger")
-        return redirect(url_for('item_detail', item_id=item_id))
-    item.is_sold = True
-    db.session.commit()
-    flash("Item marked as sold.", "success")
-    return redirect(url_for('item_detail', item_id=item_id))
-
-@app.route('/unmark_sold/<int:item_id>', methods=['POST'])
-@login_required
-def unmark_sold(item_id):
-    item = Item.query.get_or_404(item_id)
-    if item.user_id != current_user.id:
-        flash("You cannot change this item.", "danger")
-        return redirect(url_for('item_detail', item_id=item_id))
-    item.is_sold = False
-    db.session.commit()
-    flash("Item marked available.", "success")
-    return redirect(url_for('item_detail', item_id=item_id))
-
-# Inbox - show conversations for owner (grouped by item + sender)
 @app.route('/inbox')
 @login_required
 def inbox():
-    # find items owned by current user
-    my_items = Item.query.filter_by(user_id=current_user.id).all()
-    item_ids = [i.id for i in my_items]
-    conversations = []
+    # gather messages that involve current user, newest first
+    msgs = Message.query.filter(
+        or_(Message.sender_id == current_user.id, Message.recipient_id == current_user.id)
+    ).order_by(Message.timestamp.desc()).all()
 
-    if item_ids:
-        # get distinct pairs (item_id, sender_id) where sender != owner
-        rows = db.session.query(Message.item_id, Message.sender_id, db.func.max(Message.timestamp).label('last_time')) \
-                 .filter(Message.item_id.in_(item_ids)) \
-                 .group_by(Message.item_id, Message.sender_id) \
-                 .order_by(db.desc('last_time')).all()
+    # collapse into unique threads keyed by (item_id, other_user_id)
+    threads = {}
+    for m in msgs:
+        other = m.recipient_id if m.sender_id == current_user.id else m.sender_id
+        key = (m.item_id, other)
+        if key not in threads:
+            threads[key] = m
 
-        for item_id, sender_id, last_time in rows:
-            if sender_id == current_user.id:
-                continue
-            item = Item.query.get(item_id)
-            sender = User.query.get(sender_id)
-            last_msg = Message.query.filter_by(item_id=item_id, sender_id=sender_id) \
-                         .order_by(Message.timestamp.desc()).first()
-            conversations.append({
-                'item': item,
-                'sender': sender,
-                'last_message': last_msg,
-                'last_time': last_time
-            })
+    thread_list = []
+    for (item_id, other_id), last_msg in threads.items():
+        other_user = User.query.get(other_id)
+        item = Item.query.get(item_id)
+        thread_list.append({
+            "item": item,
+            "other": other_user,
+            "last_message": last_msg
+        })
 
-    return render_template('inbox.html', conversations=conversations)
+    return render_template('inbox.html', threads=thread_list)
 
-# Conversation view between owner and one other user for an item
 @app.route('/conversation/<int:item_id>/<int:other_id>', methods=['GET', 'POST'])
 @login_required
 def conversation(item_id, other_id):
+    other = User.query.get_or_404(other_id)
     item = Item.query.get_or_404(item_id)
-    # only owner or the other user can view
-    if current_user.id not in (item.user_id, other_id):
-        flash("Not authorized", "danger")
-        return redirect(url_for('index'))
 
-    # sending message from current_user to other participant
-    if request.method == 'POST':
-        text = request.form.get('message', '').strip()
+    # ensure current_user participates in conversation (either owner or the other)
+    if current_user.id not in (item.user_id, other.id):
+        flash('Not authorized to view this conversation.', 'danger')
+        return redirect(url_for('inbox'))
+
+    form = ChatForm()
+    if form.validate_on_submit():
+        text = form.message.data.strip()
         if text:
-            recipient_id = other_id if current_user.id == item.user_id else item.user_id
-            msg = Message(item_id=item.id, sender_id=current_user.id, recipient_id=recipient_id, content=text)
+            msg = Message(
+                item_id=item.id,
+                sender_id=current_user.id,
+                recipient_id=other.id,
+                content=text
+            )
             db.session.add(msg)
             db.session.commit()
             return redirect(url_for('conversation', item_id=item_id, other_id=other_id))
 
-    # load all messages between these two users for this item
-    messages = Message.query.filter(
-        Message.item_id == item_id
+    conv = Message.query.filter(
+        Message.item_id == item.id
     ).filter(
-        ((Message.sender_id == current_user.id) & (Message.recipient_id == other_id)) |
-        ((Message.sender_id == other_id) & (Message.recipient_id == current_user.id))
-    ).order_by(Message.timestamp.asc()).all()
+        ((Message.sender_id == current_user.id) & (Message.recipient_id == other.id))
+        | ((Message.sender_id == other.id) & (Message.recipient_id == current_user.id))
+    ).order_by(Message.timestamp).all()
 
-    other_user = User.query.get_or_404(other_id)
-    return render_template('conversation.html', item=item, other_user=other_user, messages=messages)
+    return render_template('conversation.html', item=item, other=other, messages=conv, form=form)
 
 # admin & dashboard placeholders
 @app.route('/dashboard')

@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -18,20 +18,15 @@
            <small style="color:var(--muted);font-weight:600">Give. Reuse. Smile.</small>
           </div>
        </a>
-
-       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-         <span class="navbar-toggler-icon"></span>
-       </button>
-
-        <div class="collapse navbar-collapse" id="mainNav">
+        <div class="collapse navbar-collapse">
           <ul class="navbar-nav me-auto">
             <li class="nav-item"><a class="nav-link" href="{{ url_for('listings') }}">Listings</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ url_for('upload') }}">Upload</a></li>
           </ul>
           <ul class="navbar-nav">
             {% if current_user.is_authenticated %}
-              <li class="nav-item"><a class="nav-link" href="{{ url_for('inbox') }}"><i class="bi bi-inbox-fill"></i> Inbox</a></li>
               <li class="nav-item"><a class="nav-link" href="{{ url_for('profile') }}">Hi, {{ current_user.name }}</a></li>
+              <li class="nav-item"><a class="nav-link" href="{{ url_for('inbox') }}">Inbox</a></li>
               <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
             {% else %}
               <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>

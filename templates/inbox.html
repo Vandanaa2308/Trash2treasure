@@ -1,24 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 <h3>Inbox</h3>
-
-{% if not conversations %}
-  <div class="card p-3">
-    <p class="text-muted">No messages yet.</p>
-  </div>
-{% else %}
+{% if threads %}
   <div class="list-group">
-    {% for c in conversations %}
-      <a href="{{ url_for('conversation', item_id=c.item.id, other_id=c.sender.id) }}"
+    {% for th in threads %}
+      <a href="{{ url_for('conversation', item_id=th.item.id, other_id=th.other.id) }}"
          class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
         <div>
-          <div class="fw-bold">{{ c.sender.name }}</div>
-          <div class="small text-muted">about <strong>{{ c.item.title }}</strong></div>
-          <div class="small text-muted">{{ c.last_message.content[:80] }}{% if c.last_message.content|length > 80 %}...{% endif %}</div>
+          <div class="fw-bold">{{ th.item.title }}</div>
+          <div class="small text-muted">With {{ th.other.name }} — {{ th.last_message.content[:80] }}{% if th.last_message.content|length > 80 %}...{% endif %}</div>
         </div>
-        <div class="text-end small text-muted">{{ c.last_time.strftime('%Y-%m-%d %H:%M') if c.last_time }}</div>
+        <div class="text-end small">
+          <div>{{ th.last_message.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+        </div>
       </a>
     {% endfor %}
   </div>
+{% else %}
+  <p class="text-muted">No conversations yet.</p>
 {% endif %}
 {% endblock %}
