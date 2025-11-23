@@ -121,7 +121,7 @@ def item_detail(item_id):
     # load all reviews (newest first) joined with the user who rated
     all_reviews = db.session.query(Rating, User).join(User, Rating.user_id == User.id) \
                     .filter(Rating.item_id == item.id) \
-                    .order_by(Rating.timestamp.desc()).all()
+                    .order_by(Rating.created_at.desc()).all()
 
     return render_template(
         'item.html',

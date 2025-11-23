@@ -92,7 +92,7 @@
                       {% endfor %}
                       <strong class="ms-2">{{ r.stars }}/5</strong>
                     </div>
-                    <div class="review-meta">by <strong>{{ u.name }}</strong> • {{ r.timestamp.strftime('%Y-%m-%d') if r.timestamp else '' }}</div>
+                    <div class="review-meta">by <strong>{{ u.name }}</strong> • {{ r.created_at.strftime('%Y-%m-%d') if r.timestamp else '' }}</div>
                   </div>
                 </div>
                 {% if r.review %}
