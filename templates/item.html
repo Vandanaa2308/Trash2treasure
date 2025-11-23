@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  /* small inline styles for star icons; you can move to your styles.css later */
+  .stars { font-size: 1.05rem; line-height: 1; display:inline-block; }
+  .star { color: #ddd; margin-right: 3px; font-size:1.2rem; }
+  .star.filled { color: #f6c600; } /* golden */
+  .review-card { border-radius:6px; padding:10px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,0.03); }
+  .review-meta { font-size:0.85rem; color:#666; }
+</style>
+
 <div class="row">
   <div class="col-md-7">
     <div class="card">
@@ -22,7 +31,14 @@
         <p>{{ item.description }}</p>
         <p><strong>{{ 'Free' if item.is_free else ('Price: ₹' ~ (item.price | round(2))) }}</strong></p>
         <p class="small text-muted">Uploaded: {{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-        <p class="small">Owner: {{ item.user.name if item.user else 'Unknown' }}</p>
+
+        <p class="small">Owner:
+          {% if item.user %}
+            <a href="{{ url_for('profile') if current_user.is_authenticated and current_user.id == item.user.id else url_for('profile') }}">{{ item.user.name }}</a>
+          {% else %}
+            Unknown
+          {% endif %}
+        </p>
 
         <a href="{{ url_for('chat_with_owner', item_id=item.id) }}" class="btn btn-primary mt-2">💬 Chat with Owner</a>
 
@@ -46,9 +62,46 @@
         <!-- Ratings display -->
         <div class="mt-3">
           {% if avg_rating %}
-            <strong>Rating:</strong> {{ '%.1f'|format(avg_rating) }} / 5 ({{ rating_count }} reviews)
+            <div class="d-flex align-items-center">
+              <div class="stars" aria-hidden="true">
+                {% for i in range(1,6) %}
+                  <span class="star {% if avg_rating >= i %}filled{% endif %}">★</span>
+                {% endfor %}
+              </div>
+              <div class="ms-2">
+                <strong>{{ '%.1f'|format(avg_rating) }}</strong> / 5
+                <div class="small text-muted">({{ rating_count }} reviews)</div>
+              </div>
+            </div>
           {% else %}
             <strong>No ratings yet</strong>
+          {% endif %}
+        </div>
+
+        <!-- Reviews list (newest first) -->
+        <div class="mt-4">
+          <h5>Reviews</h5>
+          {% if all_reviews %}
+            {% for r, u in all_reviews %}
+              <div class="review-card mb-2">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div>
+                      {% for i in range(1,6) %}
+                        <span class="star {% if r.stars >= i %}filled{% endif %}">★</span>
+                      {% endfor %}
+                      <strong class="ms-2">{{ r.stars }}/5</strong>
+                    </div>
+                    <div class="review-meta">by <strong>{{ u.name }}</strong> • {{ r.timestamp.strftime('%Y-%m-%d') if r.timestamp else '' }}</div>
+                  </div>
+                </div>
+                {% if r.review %}
+                  <p class="mt-2 mb-0">{{ r.review }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted">No reviews yet.</p>
           {% endif %}
         </div>
 

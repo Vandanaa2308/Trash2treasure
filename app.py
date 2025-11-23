@@ -1,5 +1,6 @@
 # app.py
 import os
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -50,49 +51,87 @@ def listings():
     items = query.order_by(Item.created_at.desc()).all()
     return render_template('listings.html', items=items, q=q, cat=cat, free=free)
 
-# item detail + rating handling
+# item detail + rating & contact handling
 @app.route('/item/<int:item_id>', methods=['GET', 'POST'])
 def item_detail(item_id):
     item = Item.query.get_or_404(item_id)
-    # contact form
+
+    # forms (use prefixes if needed, but the template uses simple names)
     contact_form = ContactForm()
     rating_form = RatingForm()
-    # handle contact
+
+    # --- CONTACT: store as Message in DB (owner will see it in their inbox)
     if contact_form.validate_on_submit() and 'send_contact' in request.form:
-        flash('Message sent to owner (demo)', 'success')
+        # require user to be logged in to store sender_id
+        if not current_user.is_authenticated:
+            flash('Please log in to contact the owner.', 'warning')
+            return redirect(url_for('login'))
+
+        # build a friendly message content
+        contact_text = f"Contact request from {contact_form.name.data} ({contact_form.email.data}):\n\n{contact_form.message.data}"
+        msg = Message(
+            item_id=item.id,
+            sender_id=current_user.id,
+            recipient_id=item.user_id,
+            content=contact_text,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(msg)
+        db.session.commit()
+        flash('Message sent to owner.', 'success')
         return redirect(url_for('item_detail', item_id=item_id))
 
-    # handle rating submission
+    # --- RATING: integer 1..5, one rating per user per item (update if exists)
     if rating_form.validate_on_submit() and 'submit_rating' in request.form:
+        # must be logged in
         if not current_user.is_authenticated:
             flash('Please login to submit rating', 'warning')
             return redirect(url_for('login'))
+
         # owner cannot rate own item
         if current_user.id == item.user_id:
             flash('You cannot rate your own item', 'warning')
             return redirect(url_for('item_detail', item_id=item_id))
 
-        stars = rating_form.stars.data
+        stars = int(rating_form.stars.data)
         review = rating_form.review.data or ''
+
         existing = Rating.query.filter_by(item_id=item.id, user_id=current_user.id).first()
         if existing:
             existing.stars = stars
             existing.review = review
-            existing.created_at = Rating.utcnow()
+            # update timestamp if field exists
+            try:
+                existing.timestamp = datetime.utcnow()
+            except Exception:
+                pass
             flash('Your rating was updated', 'success')
         else:
-            r = Rating(item_id=item.id, user_id=current_user.id, stars=stars, review=review)
+            r = Rating(item_id=item.id, user_id=current_user.id, stars=stars, review=review, timestamp=datetime.utcnow())
             db.session.add(r)
             flash('Thank you for your rating', 'success')
         db.session.commit()
         return redirect(url_for('item_detail', item_id=item_id))
 
-    # show average rating
+    # compute average and count for this item
     avg = db.session.query(db.func.avg(Rating.stars)).filter(Rating.item_id == item.id).scalar()
     count = Rating.query.filter_by(item_id=item.id).count()
-    avg = float(avg) if avg else None
+    avg = float(avg) if avg is not None else None
 
-    return render_template('item.html', item=item, form=contact_form, rating_form=rating_form, avg_rating=avg, rating_count=count)
+    # load all reviews (newest first) joined with the user who rated
+    all_reviews = db.session.query(Rating, User).join(User, Rating.user_id == User.id) \
+                    .filter(Rating.item_id == item.id) \
+                    .order_by(Rating.timestamp.desc()).all()
+
+    return render_template(
+        'item.html',
+        item=item,
+        form=contact_form,
+        rating_form=rating_form,
+        avg_rating=avg,
+        rating_count=count,
+        all_reviews=all_reviews
+    )
 
 # upload (must login)
 @app.route('/upload', methods=['GET', 'POST'])
@@ -198,7 +237,8 @@ def chat_with_owner(item_id):
                 item_id=item.id,
                 sender_id=current_user.id,
                 recipient_id=owner.id,
-                content=text
+                content=text,
+                timestamp=datetime.utcnow()
             )
             db.session.add(msg)
             db.session.commit()
@@ -309,7 +349,7 @@ def conversation(item_id, other_id):
         text = request.form.get('message', '').strip()
         if text:
             recipient_id = other_id if current_user.id == item.user_id else item.user_id
-            msg = Message(item_id=item.id, sender_id=current_user.id, recipient_id=recipient_id, content=text)
+            msg = Message(item_id=item.id, sender_id=current_user.id, recipient_id=recipient_id, content=text, timestamp=datetime.utcnow())
             db.session.add(msg)
             db.session.commit()
             return redirect(url_for('conversation', item_id=item_id, other_id=other_id))
