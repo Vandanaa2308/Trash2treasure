@@ -107,7 +107,7 @@ def item_detail(item_id):
                 pass
             flash('Your rating was updated', 'success')
         else:
-            r = Rating(item_id=item.id, user_id=current_user.id, stars=stars, review=review, timestamp=datetime.utcnow())
+            r = Rating(item_id=item.id, user_id=current_user.id, stars=stars, review=review, created_at=datetime.utcnow())
             db.session.add(r)
             flash('Thank you for your rating', 'success')
         db.session.commit()
