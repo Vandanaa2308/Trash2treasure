@@ -102,7 +102,7 @@ def item_detail(item_id):
             existing.review = review
             # update timestamp if field exists
             try:
-                existing.timestamp = datetime.utcnow()
+                existing.created_at = datetime.utcnow()
             except Exception:
                 pass
             flash('Your rating was updated', 'success')
