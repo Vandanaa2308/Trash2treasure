@@ -26,7 +26,7 @@ class Item(db.Model):
     category = db.Column(db.String(80))
     image_filename = db.Column(db.String(300))
     quantity = db.Column(db.String(80))
-    is_free = db.Column(db.Boolean, default=True)
+    is_free = db.Column(db.Boolean, default=False)
     price = db.Column(db.Float, default=0.0)
     location = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
