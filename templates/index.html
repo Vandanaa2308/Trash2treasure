@@ -1,22 +1,115 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Latest items</h2>
+
+<!-- HERO / QUOTES -->
+<div class="hero mb-4" id="hero">
+  <div class="hero-slide active" style="background-image:url('{{ url_for('static', filename='images/hero1.jpg') }}');"></div>
+  <div class="hero-slide" style="background-image:url('{{ url_for('static', filename='images/hero2.jpg') }}');"></div>
+  <div class="hero-slide" style="background-image:url('{{ url_for('static', filename='images/hero3.jpg') }}');"></div>
+
+  <div class="hero-overlay"></div>
+
+  <div class="hero-content">
+    <div class="hero-quote" id="hero-quote">“Give what you can — someone is waiting to treasure it.”</div>
+    <div class="hero-author" id="hero-author">— Trash → Treasure</div>
+
+    <div class="hero-cta">
+      <a href="{{ url_for('upload') }}" class="btn btn-hero-primary">Upload an item</a>
+      <a href="{{ url_for('listings') }}" class="btn btn-hero-secondary">Browse listings</a>
+    </div>
+  </div>
+
+  <div class="hero-dots" id="hero-dots" aria-hidden="true">
+    <div class="hero-dot active" data-idx="0" role="button" aria-label="Slide 1"></div>
+    <div class="hero-dot" data-idx="1" role="button" aria-label="Slide 2"></div>
+    <div class="hero-dot" data-idx="2" role="button" aria-label="Slide 3"></div>
+  </div>
+</div>
+<!-- END HERO -->
+
+<h2 class="mb-3">Latest items</h2>
 <div class="row">
   {% for item in items %}
     <div class="col-md-4 mb-3">
-      <div class="card h-100">
+      <div class="card h-100 position-relative">
         {% if item.image_filename %}
           <img src="{{ url_for('uploaded_file', filename=item.image_filename) }}" class="card-img-top" style="height:180px;object-fit:cover;">
+        {% else %}
+          <div class="card-img-top" style="height:180px;display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#f7f9ff,#fff);">
+            <span class="small text-muted">No image</span>
+          </div>
         {% endif %}
-        <div class="card-body">
+        <div class="card-body d-flex flex-column">
           <h5 class="card-title">{{ item.title }}</h5>
-          <p class="card-text">{{ item.description|truncate(120) }}</p>
-          <a class="btn btn-sm btn-primary" href="{{ url_for('item_detail', item_id=item.id) }}">View</a>
+          <p class="card-text" style="flex:1;">{{ item.description|truncate(120) }}</p>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <a class="btn btn-sm btn-primary" href="{{ url_for('item_detail', item_id=item.id) }}">View</a>
+            {% if item.is_sold %}
+              <span class="badge bg-danger">SOLD</span>
+            {% else %}
+              <span class="badge bg-success">{{ 'Free' if item.is_free else ('₹' ~ (item.price | round(2))) }}</span>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
   {% else %}
-    <p>No items yet.</p>
+    <div class="col-12">
+      <p class="text-muted">No items yet.</p>
+    </div>
   {% endfor %}
 </div>
+
+<!-- Hero JS: simple rotator and quote updates (keeps it self-contained) -->
+<script>
+(function(){
+  const slides = document.querySelectorAll('.hero-slide');
+  const dots = document.querySelectorAll('.hero-dot');
+  const quoteEl = document.getElementById('hero-quote');
+  const authorEl = document.getElementById('hero-author');
+
+  const quotes = [
+    {q: "Give what you can — someone is waiting to treasure it.", a: "— Trash → Treasure"},
+    {q: "One person's trash can be another's treasure. Share with care.", a: "— Community"},
+    {q: "Reuse. Rehome. Rejoice. Little actions create big change.", a: "— The Circular Way"}
+  ];
+
+  if (!slides.length) return;
+
+  let idx = 0;
+  let timer = null;
+
+  function show(i){
+    slides.forEach((s,ii)=> s.classList.toggle('active', ii===i));
+    dots.forEach((d,ii)=> d.classList.toggle('active', ii===i));
+    if (quotes[i]) {
+      quoteEl.textContent = quotes[i].q;
+      authorEl.textContent = quotes[i].a;
+    }
+    idx = i;
+  }
+
+  function start(){
+    timer = setInterval(()=> {
+      const next = (idx + 1) % slides.length;
+      show(next);
+    }, 4800);
+  }
+
+  dots.forEach(d=>{
+    d.addEventListener('click', ()=>{
+      const i = Number(d.dataset.idx || 0);
+      show(i);
+      clearInterval(timer);
+      start();
+    });
+  });
+
+  // init
+  show(0);
+  start();
+})();
+</script>
+
 {% endblock %}
